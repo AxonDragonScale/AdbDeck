@@ -4,11 +4,13 @@ import com.github.axondragonscale.adbdeck.AdbDeckBundle
 import com.github.axondragonscale.adbdeck.adb.AppCommands
 import com.github.axondragonscale.adbdeck.adb.AppListCommands
 import com.github.axondragonscale.adbdeck.adb.PermissionCommands
+import com.github.axondragonscale.adbdeck.model.AdbResult
 import com.github.axondragonscale.adbdeck.model.InstalledAppInfo
 import com.github.axondragonscale.adbdeck.state.AdbDeckStateService
 import com.github.axondragonscale.adbdeck.toolwindow.ActionContext
 import com.github.axondragonscale.adbdeck.toolwindow.components.iconButton
 import com.github.axondragonscale.adbdeck.util.notifyAdbDeck
+import com.github.axondragonscale.adbdeck.util.runAdbAction
 import com.intellij.icons.AllIcons
 import com.intellij.notification.NotificationType
 import com.intellij.openapi.actionSystem.AnAction
@@ -33,7 +35,11 @@ import java.awt.FlowLayout
 import java.awt.datatransfer.StringSelection
 import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
-import javax.swing.*
+import javax.swing.BoxLayout
+import javax.swing.ButtonGroup
+import javax.swing.JPanel
+import javax.swing.JRadioButton
+import javax.swing.JTable
 import javax.swing.event.DocumentEvent
 import javax.swing.table.AbstractTableModel
 import javax.swing.table.DefaultTableCellRenderer
@@ -60,11 +66,11 @@ class AppsOnDeviceTabPanel(private val ctx: ActionContext) : JPanel(BorderLayout
     }
 
     init {
-        border = JBUI.Borders.empty(4)
+        border = JBUI.Borders.empty(0, 4, 4, 4)
 
         // ── Search bar ──
         val searchPanel = JPanel(BorderLayout(4, 0)).apply {
-            border = JBUI.Borders.emptyBottom(4)
+            border = JBUI.Borders.empty(12, 0, 4, 0)
             add(JBLabel(AllIcons.Actions.Search), BorderLayout.WEST)
             add(searchField, BorderLayout.CENTER)
         }
@@ -78,13 +84,14 @@ class AppsOnDeviceTabPanel(private val ctx: ActionContext) : JPanel(BorderLayout
 
         // ── Filter radio buttons (exclusive selection with clear visual indicator) ──
         val filterPanel = JPanel(BorderLayout()).apply {
-            val filtersRow = JPanel(FlowLayout(FlowLayout.LEFT, 2, 2)).apply {
+            border = JBUI.Borders.emptyBottom(4)
+            val filtersRow = JPanel(FlowLayout(FlowLayout.LEFT, 0, 0)).apply {
                 val group = ButtonGroup()
 
                 fun addFilter(label: String, filter: AppFilter, selected: Boolean = false) {
                     val rb = JRadioButton(label, selected).apply {
                         isFocusPainted = false
-                        border = JBUI.Borders.empty(3, 6)
+                        border = JBUI.Borders.empty(0, 4)
                         addActionListener { currentFilter = filter; applyFilters() }
                     }
                     group.add(rb)
@@ -116,10 +123,11 @@ class AppsOnDeviceTabPanel(private val ctx: ActionContext) : JPanel(BorderLayout
             tableHeader.reorderingAllowed = false
             autoCreateRowSorter = true
 
-            columnModel.getColumn(0).preferredWidth = 120
-            columnModel.getColumn(1).preferredWidth = 200
-            columnModel.getColumn(2).preferredWidth = 80
-            columnModel.getColumn(3).preferredWidth = 60
+            columnModel.getColumn(0).preferredWidth = JBUI.scale(130)
+            columnModel.getColumn(1).preferredWidth = JBUI.scale(220)
+            columnModel.getColumn(2).preferredWidth = JBUI.scale(70)
+            columnModel.getColumn(3).preferredWidth = JBUI.scale(60)
+            columnModel.getColumn(3).maxWidth = JBUI.scale(80)
 
             // Type column coloring
             columnModel.getColumn(3).cellRenderer = object : DefaultTableCellRenderer() {
@@ -251,9 +259,7 @@ class AppsOnDeviceTabPanel(private val ctx: ActionContext) : JPanel(BorderLayout
                     executeOnApp(app) { s, p ->
                         val perms = PermissionCommands.parsePermissions(ctx.adbController, s, p)
                         val results = PermissionCommands.grantAllDangerous(ctx.adbController, s, p, perms)
-                        com.github.axondragonscale.adbdeck.model.AdbResult(
-                            "pm grant (all)", "Granted ${results.count { it.isSuccess }}", "", 0
-                        )
+                        AdbResult.success("pm grant (all)", "Granted ${results.count { it.isSuccess }}")
                     }
                 }
             })
@@ -263,9 +269,7 @@ class AppsOnDeviceTabPanel(private val ctx: ActionContext) : JPanel(BorderLayout
                     executeOnApp(app) { s, p ->
                         val perms = PermissionCommands.parsePermissions(ctx.adbController, s, p)
                         val results = PermissionCommands.revokeAllDangerous(ctx.adbController, s, p, perms)
-                        com.github.axondragonscale.adbdeck.model.AdbResult(
-                            "pm revoke (all)", "Revoked ${results.count { it.isSuccess }}", "", 0
-                        )
+                        AdbResult.success("pm revoke (all)", "Revoked ${results.count { it.isSuccess }}")
                     }
                 }
             })
@@ -294,18 +298,10 @@ class AppsOnDeviceTabPanel(private val ctx: ActionContext) : JPanel(BorderLayout
 
     private fun executeOnApp(
         app: InstalledAppInfo,
-        action: (serial: String, pkg: String) -> com.github.axondragonscale.adbdeck.model.AdbResult
+        action: (serial: String, pkg: String) -> AdbResult,
     ) {
         val serial = ctx.getSelectedDeviceSerial() ?: return
-        ApplicationManager.getApplication().executeOnPooledThread {
-            val result = action(serial, app.packageName)
-            ApplicationManager.getApplication().invokeLater {
-                ctx.logToConsole(result.command, if (result.isSuccess) result.output else result.error)
-                val type = if (result.isSuccess) NotificationType.INFORMATION else NotificationType.ERROR
-                val msg = if (result.isSuccess) result.output.take(100).ifBlank { "Done" } else result.error.take(100)
-                ctx.project.notifyAdbDeck(msg, type)
-            }
-        }
+        ctx.runAdbAction(serial) { s -> action(s, app.packageName) }
     }
 
     // ── Table Model ──

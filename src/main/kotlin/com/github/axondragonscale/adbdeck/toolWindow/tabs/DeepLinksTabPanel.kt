@@ -6,7 +6,10 @@ import com.github.axondragonscale.adbdeck.model.IntentBookmark
 import com.github.axondragonscale.adbdeck.model.IntentBookmarkExtra
 import com.github.axondragonscale.adbdeck.state.AdbDeckStateService
 import com.github.axondragonscale.adbdeck.toolwindow.ActionContext
+import com.github.axondragonscale.adbdeck.toolwindow.components.fillXConstraints
+import com.github.axondragonscale.adbdeck.toolwindow.components.horizontalSpacerConstraints
 import com.github.axondragonscale.adbdeck.toolwindow.components.iconButton
+import com.github.axondragonscale.adbdeck.toolwindow.components.verticalGlueConstraints
 import com.intellij.icons.AllIcons
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
@@ -22,7 +25,6 @@ import com.intellij.openapi.ui.popup.SpeedSearchFilter
 import com.intellij.ui.PopupHandler
 import com.intellij.ui.TitledSeparator
 import com.intellij.ui.components.JBLabel
-import com.intellij.ui.components.JBList
 import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.components.JBTextField
 import com.intellij.ui.table.JBTable
@@ -40,13 +42,14 @@ import java.awt.event.MouseEvent
 import javax.swing.ButtonGroup
 import javax.swing.DefaultCellEditor
 import javax.swing.DefaultComboBoxModel
-import javax.swing.DefaultListModel
 import javax.swing.JButton
 import javax.swing.JCheckBox
 import javax.swing.JPanel
 import javax.swing.JRadioButton
 import javax.swing.JTable
 import javax.swing.ListCellRenderer
+import javax.swing.ListSelectionModel
+import javax.swing.SwingUtilities
 import javax.swing.table.AbstractTableModel
 import javax.swing.table.DefaultTableCellRenderer
 
@@ -77,7 +80,7 @@ class DeepLinksTabPanel(private val ctx: ActionContext) : JPanel(BorderLayout())
         setShowGrid(false)
         rowHeight = JBUI.scale(24)
         tableHeader.reorderingAllowed = false
-        selectionModel.selectionMode = javax.swing.ListSelectionModel.SINGLE_SELECTION
+        selectionModel.selectionMode = ListSelectionModel.SINGLE_SELECTION
     }
 
     // Intent builder
@@ -110,15 +113,11 @@ class DeepLinksTabPanel(private val ctx: ActionContext) : JPanel(BorderLayout())
         val content = JPanel(GridBagLayout())
         var row = 0
 
-        fun fillX(r: Int) = GridBagConstraints().apply {
-            gridx = 0; gridy = r; weightx = 1.0; fill = GridBagConstraints.HORIZONTAL
-            anchor = GridBagConstraints.NORTHWEST
-        }
 
         // ── Deep Link ──
         content.add(TitledSeparator("Deep Link").apply {
             border = JBUI.Borders.emptyTop(12)
-        }, fillX(row++))
+        }, fillXConstraints(row++))
 
         // URI combo + Open + Bookmark buttons
         content.add(JPanel(GridBagLayout()).apply {
@@ -137,7 +136,7 @@ class DeepLinksTabPanel(private val ctx: ActionContext) : JPanel(BorderLayout())
             add(iconButton(AllIcons.Nodes.BookmarkGroup, "Save as bookmark") { addBookmark() }, GridBagConstraints().apply {
                 gridx = 2; gridy = 0; anchor = GridBagConstraints.EAST
             })
-        }, fillX(row++))
+        }, fillXConstraints(row++))
 
         // Enter key opens deep link
         (uriCombo.editor.editorComponent as? JBTextField)?.addKeyListener(object : KeyAdapter() {
@@ -149,13 +148,13 @@ class DeepLinksTabPanel(private val ctx: ActionContext) : JPanel(BorderLayout())
         // ── Custom Intent ──
         content.add(TitledSeparator("Custom Intent").apply {
             border = JBUI.Borders.emptyTop(16)
-        }, fillX(row++))
+        }, fillXConstraints(row++))
 
         // Intent type
         content.add(JPanel(GridBagLayout()).apply {
             border = JBUI.Borders.empty(4, 0)
             add(JBLabel("Type:").apply {
-                preferredSize = Dimension(JBUI.scale(80), preferredSize.height)
+                preferredSize = Dimension(JBUI.scale(90), preferredSize.height)
             }, GridBagConstraints().apply {
                 gridx = 0; gridy = 0; anchor = GridBagConstraints.WEST; insets = JBUI.insetsRight(8)
             })
@@ -177,19 +176,19 @@ class DeepLinksTabPanel(private val ctx: ActionContext) : JPanel(BorderLayout())
                 gridx = IntentCommands.IntentType.entries.size + 1; gridy = 0; weightx = 1.0
                 fill = GridBagConstraints.HORIZONTAL
             })
-        }, fillX(row++))
+        }, fillXConstraints(row++))
 
         // Intent fields
-        content.add(createLabeledField("Action:", intentActionField), fillX(row++))
-        content.add(createLabeledField("Data:", intentDataField), fillX(row++))
-        content.add(createLabeledField("Component:", intentComponentField), fillX(row++))
-        content.add(createLabeledField("Category:", intentCategoryField), fillX(row++))
+        content.add(createLabeledField("Action:", intentActionField), fillXConstraints(row++))
+        content.add(createLabeledField("Data:", intentDataField), fillXConstraints(row++))
+        content.add(createLabeledField("Component:", intentComponentField), fillXConstraints(row++))
+        content.add(createLabeledField("Category:", intentCategoryField), fillXConstraints(row++))
 
         // Flags — dropdown selector styled like a combo box
         content.add(JPanel(GridBagLayout()).apply {
             border = JBUI.Borders.empty(2, 0)
             add(JBLabel("Flags:").apply {
-                preferredSize = Dimension(JBUI.scale(80), preferredSize.height)
+                preferredSize = Dimension(JBUI.scale(90), preferredSize.height)
             }, GridBagConstraints().apply {
                 gridx = 0; gridy = 0; anchor = GridBagConstraints.WEST
                 insets = JBUI.insetsRight(8)
@@ -197,7 +196,7 @@ class DeepLinksTabPanel(private val ctx: ActionContext) : JPanel(BorderLayout())
             add(flagsField, GridBagConstraints().apply {
                 gridx = 1; gridy = 0; weightx = 1.0; fill = GridBagConstraints.HORIZONTAL
             })
-        }, fillX(row++))
+        }, fillXConstraints(row++))
 
         // Initialize extras table
         extrasTable = JBTable(extrasTableModel).apply {
@@ -247,14 +246,14 @@ class DeepLinksTabPanel(private val ctx: ActionContext) : JPanel(BorderLayout())
             add(JPanel(), GridBagConstraints().apply {
                 gridx = 3; gridy = 0; weightx = 1.0; fill = GridBagConstraints.HORIZONTAL
             })
-        }, fillX(row++))
+        }, fillXConstraints(row++))
 
         // Extras table
         content.add(JPanel(BorderLayout()).apply {
             border = JBUI.Borders.empty(2, 0)
             preferredSize = Dimension(0, JBUI.scale(144))
             add(JBScrollPane(extrasTable), BorderLayout.CENTER)
-        }, fillX(row++))
+        }, fillXConstraints(row++))
 
         // Clear (left) + Bookmark + Send (right)
         content.add(JPanel(GridBagLayout()).apply {
@@ -277,12 +276,9 @@ class DeepLinksTabPanel(private val ctx: ActionContext) : JPanel(BorderLayout())
             }, GridBagConstraints().apply {
                 gridx = 3; gridy = 0; anchor = GridBagConstraints.EAST
             })
-        }, fillX(row++))
+        }, fillXConstraints(row++))
 
-        // Glue
-        content.add(JPanel(), GridBagConstraints().apply {
-            gridx = 0; gridy = row; weighty = 1.0; fill = GridBagConstraints.VERTICAL
-        })
+        content.add(JPanel(), verticalGlueConstraints(row))
 
         add(JBScrollPane(content).apply { border = JBUI.Borders.empty() }, BorderLayout.CENTER)
 
@@ -292,14 +288,10 @@ class DeepLinksTabPanel(private val ctx: ActionContext) : JPanel(BorderLayout())
         val bottomPanel = JPanel(GridBagLayout())
         var bRow = 0
 
-        fun bFillX(r: Int) = GridBagConstraints().apply {
-            gridx = 0; gridy = r; weightx = 1.0; fill = GridBagConstraints.HORIZONTAL
-            anchor = GridBagConstraints.NORTHWEST
-        }
 
         bottomPanel.add(TitledSeparator("Bookmarks").apply {
             border = JBUI.Borders.empty(4, 0, 2, 0)
-        }, bFillX(bRow++))
+        }, fillXConstraints(bRow++))
 
         combinedBookmarkTable.apply {
             columnModel.getColumn(0).preferredWidth = JBUI.scale(60)
@@ -327,7 +319,7 @@ class DeepLinksTabPanel(private val ctx: ActionContext) : JPanel(BorderLayout())
         bottomPanel.add(JPanel(BorderLayout()).apply {
             preferredSize = Dimension(0, JBUI.scale(150))
             add(JBScrollPane(combinedBookmarkTable), BorderLayout.CENTER)
-        }, bFillX(bRow++))
+        }, fillXConstraints(bRow++))
 
         add(bottomPanel, BorderLayout.SOUTH)
 
@@ -342,7 +334,7 @@ class DeepLinksTabPanel(private val ctx: ActionContext) : JPanel(BorderLayout())
         return JPanel(GridBagLayout()).apply {
             border = JBUI.Borders.empty(2, 0)
             add(JBLabel(label).apply {
-                preferredSize = Dimension(JBUI.scale(80), preferredSize.height)
+                preferredSize = Dimension(JBUI.scale(90), preferredSize.height)
             }, GridBagConstraints().apply {
                 gridx = 0; gridy = 0; anchor = GridBagConstraints.WEST
                 insets = JBUI.insetsRight(8)
@@ -405,7 +397,7 @@ class DeepLinksTabPanel(private val ctx: ActionContext) : JPanel(BorderLayout())
         extrasTableModel.fireTableDataChanged()
     }
 
-    private fun showFlagsPopup(anchor: java.awt.Component) {
+    private fun showFlagsPopup(anchor: Component) {
         val step = object : com.intellij.openapi.ui.popup.ListPopupStep<IntentCommands.IntentFlag> {
             override fun getTitle() = "Select Flags"
             override fun getValues() = IntentCommands.IntentFlag.entries.toList()
@@ -459,17 +451,14 @@ class DeepLinksTabPanel(private val ctx: ActionContext) : JPanel(BorderLayout())
             }
         }
 
-        popup.setMinimumSize(java.awt.Dimension(anchor.width, 0))
+        popup.setMinimumSize(Dimension(anchor.width, 0))
         popup.showUnderneathOf(anchor)
         popup.content?.let { content ->
-            val popupWindow = javax.swing.SwingUtilities.getWindowAncestor(content)
+            val popupWindow = SwingUtilities.getWindowAncestor(content)
             popupWindow?.setSize(anchor.width, popupWindow.height)
         }
     }
 
-    private fun updateFlagsSummary() {
-        flagsField.updateText()
-    }
 
     /**
      * A combo-box-like component that shows selected flags text (ellipsized) and a dropdown arrow button.

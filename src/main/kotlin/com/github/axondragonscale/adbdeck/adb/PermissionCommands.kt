@@ -9,6 +9,8 @@ import com.github.axondragonscale.adbdeck.model.PermissionInfo
  */
 object PermissionCommands {
 
+    private val PERMISSION_REGEX = Regex("""([\w.]+):\s+granted=(\w+)""")
+
     /**
      * Parses all permissions for a package from `dumpsys package`.
      */
@@ -22,7 +24,7 @@ object PermissionCommands {
         // Parse runtime permissions (dangerous)
         val runtimeSection = extractSection(output, "runtime permissions:")
         for (line in runtimeSection) {
-            val match = Regex("""([\w.]+):\s+granted=(\w+)""").find(line.trim()) ?: continue
+            val match = PERMISSION_REGEX.find(line.trim()) ?: continue
             val name = match.groupValues[1]
             val granted = match.groupValues[2] == "true"
             permissions.add(PermissionInfo(name, "dangerous", granted, isRuntime = true))
@@ -31,7 +33,7 @@ object PermissionCommands {
         // Parse install permissions (normal/signature)
         val installSection = extractSection(output, "install permissions:")
         for (line in installSection) {
-            val match = Regex("""([\w.]+):\s+granted=(\w+)""").find(line.trim()) ?: continue
+            val match = PERMISSION_REGEX.find(line.trim()) ?: continue
             val name = match.groupValues[1]
             val granted = match.groupValues[2] == "true"
             permissions.add(PermissionInfo(name, "normal", granted, isRuntime = false))

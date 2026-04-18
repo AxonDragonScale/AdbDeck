@@ -37,55 +37,25 @@ object AppCommands {
     }
 
     /**
-     * Returns a map of package detail key-value pairs parsed from `dumpsys package`.
+     * Returns an ordered map of package detail key-value pairs for display.
+     * Uses [DumpsysPackageParser] for parsing.
      */
     fun getPackageDetails(adb: AdbController, serial: String, pkg: String): Map<String, String> {
         val result = adb.executeShellCommand(serial, "dumpsys package $pkg")
         if (!result.isSuccess) return emptyMap()
 
-        val raw = mutableMapOf<String, String>()
-        val lines = result.output.lines()
+        val meta = DumpsysPackageParser.parse(result.output)
 
-        for (line in lines) {
-            val trimmed = line.trim()
-            when {
-                trimmed.startsWith("versionName=") ->
-                    raw["Version"] = trimmed.removePrefix("versionName=")
-                trimmed.startsWith("versionCode=") -> {
-                    val code = trimmed.removePrefix("versionCode=").split(" ").firstOrNull() ?: ""
-                    raw["Version Code"] = code
-                }
-                trimmed.startsWith("targetSdk=") ->
-                    raw["Target SDK"] = trimmed.removePrefix("targetSdk=")
-                trimmed.startsWith("minSdk=") ->
-                    raw["Min SDK"] = trimmed.removePrefix("minSdk=")
-                trimmed.startsWith("firstInstallTime=") ->
-                    raw["Installed"] = trimmed.removePrefix("firstInstallTime=")
-                trimmed.startsWith("lastUpdateTime=") ->
-                    raw["Updated"] = trimmed.removePrefix("lastUpdateTime=")
-                trimmed.startsWith("pkgFlags=") -> {
-                    val flags = trimmed.removePrefix("pkgFlags=")
-                    raw["Build Type"] = if (flags.contains("DEBUGGABLE")) "Debug" else "Release"
-                }
-                trimmed.startsWith("splits=") -> {
-                    // e.g. splits=[base]  or  splits=[base, config.xxhdpi]
-                    val splits = trimmed.removePrefix("splits=")
-                        .trim('[', ']')
-                        .split(",")
-                        .map { it.trim() }
-                        .filter { it.isNotBlank() && it != "base" }
-                    if (splits.isNotEmpty()) raw["Splits"] = splits.joinToString(", ")
-                }
-            }
+        return linkedMapOf<String, String>().apply {
+            if (meta.versionName.isNotBlank()) put("Version", meta.versionName)
+            if (meta.versionCode > 0) put("Version Code", meta.versionCode.toString())
+            put("Build Type", if (meta.isDebuggable) "Debug" else "Release")
+            if (meta.minSdk.isNotBlank()) put("Min SDK", meta.minSdk)
+            if (meta.targetSdk.isNotBlank()) put("Target SDK", meta.targetSdk)
+            if (meta.firstInstallTime.isNotBlank()) put("Installed", meta.firstInstallTime)
+            if (meta.lastUpdateTime.isNotBlank()) put("Updated", meta.lastUpdateTime)
+            if (meta.splits.isNotEmpty()) put("Splits", meta.splits.joinToString(", "))
         }
-
-        // Return in a consistent display order
-        val orderedKeys = listOf("Version", "Version Code", "Build Type", "Min SDK", "Target SDK", "Installed", "Updated", "Splits")
-        val result2 = linkedMapOf<String, String>()
-        for (key in orderedKeys) {
-            raw[key]?.let { result2[key] = it }
-        }
-        return result2
     }
 }
 

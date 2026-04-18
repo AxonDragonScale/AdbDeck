@@ -3,6 +3,7 @@ package com.github.axondragonscale.adbdeck.toolwindow
 import com.github.axondragonscale.adbdeck.adb.AdbController
 import com.github.axondragonscale.adbdeck.adb.DeviceService
 import com.github.axondragonscale.adbdeck.adb.PackageDetectionService
+import com.github.axondragonscale.adbdeck.adb.parsePackageList
 import com.github.axondragonscale.adbdeck.state.AdbDeckStateService
 import com.github.axondragonscale.adbdeck.toolwindow.components.iconButton
 import com.intellij.icons.AllIcons
@@ -116,21 +117,8 @@ class PackageSelectorPanel(private val project: Project) : JPanel(GridBagLayout(
         }
 
         ApplicationManager.getApplication().executeOnPooledThread {
-            val allResult = adbController.executeShellCommand(deviceSerial, "pm list packages")
-            val allPackages = if (allResult.exitCode == 0) {
-                allResult.output.lines()
-                    .filter { it.startsWith("package:") }
-                    .map { it.removePrefix("package:").trim() }
-                    .filter { it.isNotBlank() }
-            } else emptyList()
-
-            val sysResult = adbController.executeShellCommand(deviceSerial, "pm list packages -s")
-            val systemPackages = if (sysResult.exitCode == 0) {
-                sysResult.output.lines()
-                    .filter { it.startsWith("package:") }
-                    .map { it.removePrefix("package:").trim() }
-                    .toSet()
-            } else emptySet()
+            val allPackages = adbController.executeShellCommand(deviceSerial, "pm list packages").parsePackageList()
+            val systemPackages = adbController.executeShellCommand(deviceSerial, "pm list packages -s").parsePackageList()
 
             val userPackages = allPackages.filter { it !in systemPackages }
             val section1 = userPackages.filter { it in projectPackages }.sorted()

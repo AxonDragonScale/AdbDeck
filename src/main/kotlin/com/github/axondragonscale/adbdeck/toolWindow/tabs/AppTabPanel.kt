@@ -8,8 +8,11 @@ import com.github.axondragonscale.adbdeck.model.PermissionInfo
 import com.github.axondragonscale.adbdeck.state.AdbDeckStateService
 import com.github.axondragonscale.adbdeck.toolwindow.ActionContext
 import com.github.axondragonscale.adbdeck.toolwindow.PackageSelectorPanel
+import com.github.axondragonscale.adbdeck.toolwindow.components.actionRow
+import com.github.axondragonscale.adbdeck.toolwindow.components.fillXConstraints
 import com.github.axondragonscale.adbdeck.toolwindow.components.iconButton
 import com.github.axondragonscale.adbdeck.util.notifyAdbDeck
+import com.github.axondragonscale.adbdeck.util.runAdbActionWithPackage
 import com.intellij.icons.AllIcons
 import com.intellij.notification.NotificationType
 import com.intellij.openapi.application.ApplicationManager
@@ -22,13 +25,9 @@ import com.intellij.ui.table.JBTable
 import com.intellij.util.ui.JBUI
 import java.awt.BorderLayout
 import java.awt.Component
-import java.awt.Dimension
 import java.awt.Font
 import java.awt.GridBagConstraints
 import java.awt.GridBagLayout
-import java.awt.Insets
-import java.awt.event.MouseAdapter
-import java.awt.event.MouseEvent
 import javax.swing.BoxLayout
 import javax.swing.ButtonGroup
 import javax.swing.DefaultCellEditor
@@ -38,7 +37,6 @@ import javax.swing.JCheckBox
 import javax.swing.JPanel
 import javax.swing.JRadioButton
 import javax.swing.JTable
-import javax.swing.SwingConstants
 import javax.swing.table.AbstractTableModel
 
 class AppTabPanel(
@@ -68,26 +66,24 @@ class AppTabPanel(
         val topPanel = JPanel(GridBagLayout())
         var gridRow = 0
 
-        fun fillX(row: Int) = GridBagConstraints().apply {
-            gridx = 0; gridy = row; weightx = 1.0; fill = GridBagConstraints.HORIZONTAL
-            anchor = GridBagConstraints.NORTHWEST
-        }
-
-        // Package dropdown first (above its separator) — top margin matches the separator below
-        topPanel.add(packageSelectorPanel.apply {
+        // Package dropdown — wrapped to add top margin without mutating the shared panel
+        val pkgWrapper = JPanel(BorderLayout()).apply {
+            isOpaque = false
             border = JBUI.Borders.emptyTop(12)
-        }, fillX(gridRow++))
+            add(packageSelectorPanel, BorderLayout.CENTER)
+        }
+        topPanel.add(pkgWrapper, fillXConstraints(gridRow++))
 
         // Package details separator
         topPanel.add(TitledSeparator("Package Details").apply {
             border = JBUI.Borders.emptyTop(12)
-        }, fillX(gridRow++))
-        topPanel.add(detailsPanel, fillX(gridRow++))
+        }, fillXConstraints(gridRow++))
+        topPanel.add(detailsPanel, fillXConstraints(gridRow++))
 
         // Actions separator
         topPanel.add(TitledSeparator("Actions").apply {
             border = JBUI.Borders.emptyTop(16)
-        }, fillX(gridRow++))
+        }, fillXConstraints(gridRow++))
 
         // Action rows
         val actions = listOf<Triple<String, Icon, (String, String) -> AdbResult>>(
@@ -97,22 +93,22 @@ class AppTabPanel(
             Triple("App Info", AllIcons.General.Information) { s, p -> AppCommands.openAppInfo(ctx.adbController, s, p) },
         )
         for ((label, icon, action) in actions) {
-            topPanel.add(createActionRow(label, icon, label) {
+            topPanel.add(actionRow(label, icon, label) {
                 executeAction { s, p -> action(s, p) }
-            }, fillX(gridRow++))
+            }, fillXConstraints(gridRow++))
         }
 
-        topPanel.add(createActionRow("Clear App Data", AllIcons.Actions.GC, "Clear all app data and cache") {
+        topPanel.add(actionRow("Clear App Data", AllIcons.Actions.GC, "Clear all app data and cache") {
             confirmAndExecute(
                 AdbDeckBundle.message("confirm.clearData.title"),
-                AdbDeckBundle.message("confirm.clearData.message", "{pkg}")
+                { pkg -> AdbDeckBundle.message("confirm.clearData.message", pkg) }
             ) { s, p -> AppCommands.clearData(ctx.adbController, s, p) }
-        }, fillX(gridRow++))
+        }, fillXConstraints(gridRow++))
 
-        topPanel.add(createActionRow("Uninstall", AllIcons.Vcs.Remove, "Uninstall the app") {
+        topPanel.add(actionRow("Uninstall", AllIcons.Vcs.Remove, "Uninstall the app") {
             confirmAndExecute(
                 AdbDeckBundle.message("confirm.uninstall.title"),
-                AdbDeckBundle.message("confirm.uninstall.message", "{pkg}")
+                { pkg -> AdbDeckBundle.message("confirm.uninstall.message", pkg) }
             ) { s, p ->
                 val result = AppCommands.uninstall(ctx.adbController, s, p)
                 if (result.isSuccess) {
@@ -122,23 +118,23 @@ class AppTabPanel(
                 }
                 result
             }
-        }, fillX(gridRow++))
+        }, fillXConstraints(gridRow++))
 
-        topPanel.add(createActionRow("Grant All Permissions", AllIcons.Actions.Checked, "Grant all dangerous runtime permissions") {
+        topPanel.add(actionRow("Grant All Permissions", AllIcons.Actions.Checked, "Grant all dangerous runtime permissions") {
             executeAction { s, p ->
                 val perms = PermissionCommands.parsePermissions(ctx.adbController, s, p)
                 val results = PermissionCommands.grantAllDangerous(ctx.adbController, s, p, perms)
-                AdbResult("pm grant (all dangerous)", "Granted ${results.count { it.isSuccess }} permissions", "", 0)
+                AdbResult.success("pm grant (all dangerous)", "Granted ${results.count { it.isSuccess }} permissions")
             }
-        }, fillX(gridRow++))
+        }, fillXConstraints(gridRow++))
 
-        topPanel.add(createActionRow("Revoke All Permissions", AllIcons.Actions.Cancel, "Revoke all dangerous runtime permissions") {
+        topPanel.add(actionRow("Revoke All Permissions", AllIcons.Actions.Cancel, "Revoke all dangerous runtime permissions") {
             executeAction { s, p ->
                 val perms = PermissionCommands.parsePermissions(ctx.adbController, s, p)
                 val results = PermissionCommands.revokeAllDangerous(ctx.adbController, s, p, perms)
-                AdbResult("pm revoke (all dangerous)", "Revoked ${results.count { it.isSuccess }} permissions", "", 0)
+                AdbResult.success("pm revoke (all dangerous)", "Revoked ${results.count { it.isSuccess }} permissions")
             }
-        }, fillX(gridRow++))
+        }, fillXConstraints(gridRow++))
 
         add(topPanel, BorderLayout.NORTH)
 
@@ -148,7 +144,7 @@ class AppTabPanel(
         val permHeader = JPanel(GridBagLayout())
         permHeader.add(TitledSeparator("Permissions").apply {
             border = JBUI.Borders.emptyTop(16)
-        }, fillX(0).apply { gridy = 0 })
+        }, fillXConstraints(0).apply { gridy = 0 })
         val filterBar = JPanel(BorderLayout()).apply {
             border = JBUI.Borders.empty(2, 0)
             val filtersRow = JPanel().apply {
@@ -170,16 +166,16 @@ class AppTabPanel(
             add(filtersRow, BorderLayout.WEST)
             add(iconButton(AllIcons.Actions.Refresh, "Refresh") { loadPermissions() }, BorderLayout.EAST)
         }
-        permHeader.add(filterBar, fillX(0).apply { gridy = 1 })
+        permHeader.add(filterBar, fillXConstraints(0).apply { gridy = 1 })
         permSection.add(permHeader, BorderLayout.NORTH)
 
         table.apply {
             setShowGrid(false)
-            rowHeight = JBUI.scale(28)
+            rowHeight = JBUI.scale(24)
             tableHeader.reorderingAllowed = false
-            columnModel.getColumn(0).preferredWidth = 300
-            columnModel.getColumn(1).preferredWidth = 70
-            columnModel.getColumn(1).maxWidth = 90
+            columnModel.getColumn(0).preferredWidth = JBUI.scale(300)
+            columnModel.getColumn(1).preferredWidth = JBUI.scale(70)
+            columnModel.getColumn(1).maxWidth = JBUI.scale(90)
             columnModel.getColumn(1).cellRenderer = ButtonRenderer()
             columnModel.getColumn(1).cellEditor = ButtonEditor()
         }
@@ -192,41 +188,6 @@ class AppTabPanel(
         }
     }
 
-    // ── UI Helpers ──
-
-
-    private fun createActionRow(label: String, icon: Icon, tooltip: String, onClick: () -> Unit): JPanel {
-        val h = JBUI.scale(24)
-        return object : JPanel(BorderLayout()) {
-            override fun getPreferredSize() = Dimension(super.getPreferredSize().width, h)
-            override fun getMaximumSize() = Dimension(Int.MAX_VALUE, h)
-            override fun getMinimumSize() = Dimension(0, h)
-        }.apply {
-            isOpaque = false
-            border = JBUI.Borders.empty(1, 2)
-            cursor = java.awt.Cursor.getPredefinedCursor(java.awt.Cursor.HAND_CURSOR)
-
-            val btn = JButton(label, icon).apply {
-                toolTipText = tooltip
-                isFocusPainted = false; isBorderPainted = false; isContentAreaFilled = false
-                isRolloverEnabled = false
-                horizontalAlignment = SwingConstants.LEFT
-                cursor = java.awt.Cursor.getPredefinedCursor(java.awt.Cursor.HAND_CURSOR)
-                addActionListener { onClick() }
-            }
-            add(btn, BorderLayout.CENTER)
-
-            val row = this
-            val hover = object : MouseAdapter() {
-                override fun mouseEntered(e: MouseEvent) {
-                    row.isOpaque = true; row.background = JBUI.CurrentTheme.List.Hover.background(false); row.repaint()
-                }
-                override fun mouseExited(e: MouseEvent) { row.isOpaque = false; row.repaint() }
-                override fun mouseClicked(e: MouseEvent) { if (e.button == MouseEvent.BUTTON1) onClick() }
-            }
-            addMouseListener(hover); btn.addMouseListener(hover)
-        }
-    }
 
     // ── Data loading ──
 
@@ -245,12 +206,14 @@ class AppTabPanel(
                     for ((key, value) in details) {
                         detailsPanel.add(JBLabel(key).apply { font = font.deriveFont(Font.BOLD) },
                             GridBagConstraints().apply {
-                                gridx = 0; gridy = r; anchor = GridBagConstraints.WEST; insets = Insets(1, 0, 1, 8)
+                                gridx = 0; gridy = r; anchor = GridBagConstraints.WEST
+                                insets = JBUI.insets(2, 0, 2, 12)
                             })
                         detailsPanel.add(JBLabel(value),
                             GridBagConstraints().apply {
                                 gridx = 1; gridy = r; anchor = GridBagConstraints.WEST
-                                weightx = 1.0; fill = GridBagConstraints.HORIZONTAL; insets = Insets(1, 0, 1, 0)
+                                weightx = 1.0; fill = GridBagConstraints.HORIZONTAL
+                                insets = JBUI.insets(2, 0)
                             })
                         r++
                     }
@@ -283,28 +246,20 @@ class AppTabPanel(
         tableModel.fireTableDataChanged()
     }
 
-    private fun confirmAndExecute(title: String, message: String, action: (String, String) -> AdbResult) {
+    private fun confirmAndExecute(title: String, messageFn: (String) -> String, action: (String, String) -> AdbResult) {
+        val pkg = ctx.getSelectedPackage()
+        if (pkg == null) {
+            ctx.project.notifyAdbDeck(AdbDeckBundle.message("notification.noPackage"), NotificationType.WARNING)
+            return
+        }
         if (stateService.confirmDestructiveActions) {
-            val pkg = ctx.getSelectedPackage() ?: ""
-            if (Messages.showYesNoDialog(ctx.project, message.replace("{pkg}", pkg), title, Messages.getWarningIcon()) != Messages.YES) return
+            if (Messages.showYesNoDialog(ctx.project, messageFn(pkg), title, Messages.getWarningIcon()) != Messages.YES) return
         }
         executeAction(action)
     }
 
     private fun executeAction(action: (String, String) -> AdbResult) {
-        val serial = ctx.getSelectedDeviceSerial()
-        val pkg = ctx.getSelectedPackage()
-        if (serial == null) { return }
-        if (pkg == null) { ctx.project.notifyAdbDeck(AdbDeckBundle.message("notification.noPackage"), NotificationType.WARNING); return }
-        ApplicationManager.getApplication().executeOnPooledThread {
-            val result = action(serial, pkg)
-            ApplicationManager.getApplication().invokeLater {
-                ctx.logToConsole(result.command, if (result.isSuccess) result.output else result.error)
-                val type = if (result.isSuccess) NotificationType.INFORMATION else NotificationType.ERROR
-                val msg = if (result.isSuccess) result.output.take(100).ifBlank { "Done" } else result.error.take(100)
-                ctx.project.notifyAdbDeck(msg, type)
-            }
-        }
+        ctx.runAdbActionWithPackage(action)
     }
 
     // ── Permission Table ──

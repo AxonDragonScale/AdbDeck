@@ -1,24 +1,24 @@
 package com.github.axondragonscale.adbdeck.toolwindow.components
 
 import com.intellij.openapi.application.ApplicationManager
-import com.intellij.ui.components.JBCheckBox
+import com.intellij.ui.components.JBLabel
+import com.intellij.ui.components.OnOffButton
 import com.intellij.util.ui.JBUI
-import java.awt.BorderLayout
-import javax.swing.JPanel
 
 /**
- * A reusable setting row: [✓ Label]
- * Uses IntelliJ's [JBCheckBox] for a native settings-style checkbox.
- * Reads current state asynchronously and toggles on click.
+ * Encapsulates a labelled [OnOffButton] setting.
+ * Exposes [label] and [toggle] as separate components so the caller can place
+ * them into a shared [java.awt.GridBagLayout], ensuring all toggles in the
+ * same grid column are perfectly aligned regardless of label length.
  */
 class SettingToggleRow(
-    label: String,
+    labelText: String,
     private val onRead: () -> Boolean,
     private val onWrite: (Boolean) -> Unit,
-) : JPanel(BorderLayout()) {
+) {
+    val label = JBLabel(labelText)
 
-    private val checkBox = JBCheckBox(label).apply {
-        isFocusPainted = false
+    val toggle = OnOffButton().apply {
         addActionListener {
             val newState = isSelected
             ApplicationManager.getApplication().executeOnPooledThread {
@@ -27,20 +27,11 @@ class SettingToggleRow(
         }
     }
 
-    init {
-        isOpaque = false
-        border = JBUI.Borders.empty(2, 0)
-        add(checkBox, BorderLayout.WEST)
-    }
-
-    /**
-     * Reads the current value from the device asynchronously and updates the checkbox.
-     */
     fun refresh() {
         ApplicationManager.getApplication().executeOnPooledThread {
             val currentValue = onRead()
             ApplicationManager.getApplication().invokeLater {
-                checkBox.isSelected = currentValue
+                toggle.isSelected = currentValue
             }
         }
     }

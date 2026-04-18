@@ -5,6 +5,8 @@ import com.github.axondragonscale.adbdeck.adb.DeviceService
 import com.github.axondragonscale.adbdeck.model.AdbResult
 import com.github.axondragonscale.adbdeck.state.AdbDeckStateService
 import com.github.axondragonscale.adbdeck.util.notifyAdbDeck
+import com.github.axondragonscale.adbdeck.util.notificationType
+import com.github.axondragonscale.adbdeck.util.summaryMessage
 import com.intellij.notification.NotificationType
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
@@ -38,9 +40,7 @@ abstract class BaseAdbAction : AnAction() {
         ApplicationManager.getApplication().executeOnPooledThread {
             val result = execute(adb, serial, pkg)
             ApplicationManager.getApplication().invokeLater {
-                val type = if (result.isSuccess) NotificationType.INFORMATION else NotificationType.ERROR
-                val msg = if (result.isSuccess) result.output.take(100).ifBlank { "Done" } else result.error.take(100)
-                project.notifyAdbDeck(msg, type)
+                project.notifyAdbDeck(result.summaryMessage, result.notificationType)
             }
         }
     }

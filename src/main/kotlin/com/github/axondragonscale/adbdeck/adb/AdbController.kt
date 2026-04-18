@@ -93,50 +93,32 @@ class AdbController(private val project: Project) {
      * @param command the shell command to execute (without the `adb shell` prefix)
      * @return [AdbResult] with the command output
      */
+    // ── Internal ──
+
+    private fun adbNotFound(command: String) = AdbResult(
+        command = command,
+        output = "",
+        error = "ADB not found. Please configure Android SDK.",
+        exitCode = -1,
+    )
+
     fun executeShellCommand(deviceSerial: String, command: String): AdbResult {
-        val adb = getAdbPath() ?: return AdbResult(
-            command = command,
-            output = "",
-            error = "ADB not found. Please configure Android SDK.",
-            exitCode = -1,
-        )
-        val fullCommand = listOf(adb, "-s", deviceSerial, "shell") + command.split(" ")
+        val adb = getAdbPath() ?: return adbNotFound(command)
+        val fullCommand = listOf(adb, "-s", deviceSerial, "shell", command)
         return runProcess(fullCommand, displayCommand = "adb -s $deviceSerial shell $command")
     }
 
-    /**
-     * Executes a raw ADB command targeting a specific device.
-     *
-     * @param deviceSerial the target device serial number
-     * @param args the ADB arguments (e.g., "install", "-r", "/path/to/app.apk")
-     * @return [AdbResult] with the command output
-     */
     fun executeAdbCommand(deviceSerial: String, vararg args: String): AdbResult {
-        val adb = getAdbPath() ?: return AdbResult(
-            command = args.joinToString(" "),
-            output = "",
-            error = "ADB not found. Please configure Android SDK.",
-            exitCode = -1,
-        )
+        val adb = getAdbPath() ?: return adbNotFound(args.joinToString(" "))
         val fullCommand = listOf(adb, "-s", deviceSerial) + args.toList()
         return runProcess(fullCommand, displayCommand = "adb -s $deviceSerial ${args.joinToString(" ")}")
     }
 
-    /**
-     * Executes a raw ADB command without targeting a specific device.
-     */
     fun executeGlobalAdbCommand(vararg args: String): AdbResult {
-        val adb = getAdbPath() ?: return AdbResult(
-            command = args.joinToString(" "),
-            output = "",
-            error = "ADB not found. Please configure Android SDK.",
-            exitCode = -1,
-        )
+        val adb = getAdbPath() ?: return adbNotFound(args.joinToString(" "))
         val fullCommand = listOf(adb) + args.toList()
         return runProcess(fullCommand, displayCommand = "adb ${args.joinToString(" ")}")
     }
-
-    // ── Internal ──
 
     private fun runProcess(command: List<String>, displayCommand: String): AdbResult {
         return try {
@@ -175,9 +157,8 @@ class AdbController(private val project: Project) {
          */
         fun IDevice.toDeviceInfo(): DeviceInfo {
             val isEmu = isEmulator
+            val model = getProperty(IDevice.PROP_DEVICE_MODEL)
 
-            // For emulators, try the QEMU display name property first (synchronous),
-            // then fall back to the deprecated avdName getter.
             val avdDisplayName = if (isEmu) {
                 getProperty(IDevice.PROP_DEVICE_BOOT_QEMU_DISPLAY_NAME)
                     ?: @Suppress("DEPRECATION") avdName
@@ -186,7 +167,6 @@ class AdbController(private val project: Project) {
             val deviceName = when {
                 isEmu && !avdDisplayName.isNullOrBlank() -> avdDisplayName.replace('_', ' ')
                 else -> {
-                    val model = getProperty(IDevice.PROP_DEVICE_MODEL)
                     val manufacturer = getProperty(IDevice.PROP_DEVICE_MANUFACTURER)
                     when {
                         model != null && manufacturer != null -> "$manufacturer $model"
@@ -196,8 +176,7 @@ class AdbController(private val project: Project) {
                 }
             }
 
-            val apiStr = getProperty(IDevice.PROP_BUILD_API_LEVEL) ?: "0"
-            val api = apiStr.toIntOrNull() ?: 0
+            val api = getProperty(IDevice.PROP_BUILD_API_LEVEL)?.toIntOrNull() ?: 0
 
             val connectionType = when {
                 isEmu -> DeviceInfo.ConnectionType.EMULATOR
@@ -214,7 +193,7 @@ class AdbController(private val project: Project) {
             return DeviceInfo(
                 serial = serialNumber,
                 name = deviceName,
-                model = getProperty(IDevice.PROP_DEVICE_MODEL) ?: "Unknown",
+                model = model ?: "Unknown",
                 apiLevel = api,
                 isEmulator = isEmu,
                 connectionType = connectionType,

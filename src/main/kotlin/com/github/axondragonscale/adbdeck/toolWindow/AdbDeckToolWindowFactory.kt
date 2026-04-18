@@ -2,8 +2,10 @@ package com.github.axondragonscale.adbdeck.toolwindow
 
 import com.github.axondragonscale.adbdeck.adb.DeviceService
 import com.intellij.openapi.components.service
+import com.intellij.openapi.Disposable
 import com.intellij.openapi.project.DumbAware
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.util.Disposer
 import com.intellij.openapi.wm.ToolWindow
 import com.intellij.openapi.wm.ToolWindowFactory
 import com.intellij.ui.content.ContentFactory
@@ -97,6 +99,9 @@ class AdbDeckToolWindowFactory : ToolWindowFactory, DumbAware {
         }
         pollTimer.isRepeats = true
         pollTimer.start()
+
+        // Stop polling when the tool window is disposed
+        Disposer.register(toolWindow.disposable, Disposable { pollTimer.stop() })
     }
 
     override fun shouldBeAvailable(project: Project) = true

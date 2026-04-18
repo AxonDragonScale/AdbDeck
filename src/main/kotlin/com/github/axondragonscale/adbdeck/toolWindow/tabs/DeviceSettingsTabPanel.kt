@@ -6,10 +6,10 @@ import com.github.axondragonscale.adbdeck.adb.TestingCommands
 import com.github.axondragonscale.adbdeck.model.AdbResult
 import com.github.axondragonscale.adbdeck.toolwindow.ActionContext
 import com.github.axondragonscale.adbdeck.toolwindow.components.SettingToggleRow
+import com.github.axondragonscale.adbdeck.toolwindow.components.horizontalSpacerConstraints
 import com.github.axondragonscale.adbdeck.toolwindow.components.iconButton
-import com.github.axondragonscale.adbdeck.util.notifyAdbDeck
+import com.github.axondragonscale.adbdeck.util.runAdbActionWithPackage
 import com.intellij.icons.AllIcons
-import com.intellij.notification.NotificationType
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.ui.ComboBox
 import com.intellij.ui.TitledSeparator
@@ -27,22 +27,46 @@ import javax.swing.ListCellRenderer
 
 /**
  * Device Settings tab: developer options, display settings, and testing utilities.
- * Uses GridBagLayout with TitledSeparators to match IntelliJ's settings UI style.
+ *
+ * Uses a two-column GridBagLayout for toggle rows:
+ *   col 0 (weightx=1): label   col 1: OnOffButton
+ * All other rows (separators, sliders, buttons) span both columns via gridwidth=2.
+ * This guarantees every OnOffButton is aligned to the same column.
  */
 class DeviceSettingsTabPanel(private val ctx: ActionContext) : JPanel(BorderLayout()) {
 
     private val toggleRows = mutableListOf<SettingToggleRow>()
+
+    // Constraint helpers for the three-column content grid:
+    //   col 0: label (natural width — GBL makes all col-0 cells = widest label)
+    //   col 1: OnOffButton (natural width, immediately after label)
+    //   col 2: spacer (weightx=1, absorbs remaining space)
+    // Section/other rows span all 3 columns.
+    private fun spanConstraints(row: Int) = GridBagConstraints().apply {
+        gridx = 0; gridy = row; gridwidth = 3
+        weightx = 1.0; fill = GridBagConstraints.HORIZONTAL
+        anchor = GridBagConstraints.NORTHWEST
+    }
+    private fun labelConstraints(row: Int) = GridBagConstraints().apply {
+        gridx = 0; gridy = row
+        anchor = GridBagConstraints.WEST
+        insets = JBUI.insets(3, 0, 3, 8)
+    }
+    private fun toggleConstraints(row: Int) = GridBagConstraints().apply {
+        gridx = 1; gridy = row
+        anchor = GridBagConstraints.WEST
+        insets = JBUI.insets(3, 12, 3, 0)
+    }
+    private fun spacerConstraints(row: Int) = GridBagConstraints().apply {
+        gridx = 2; gridy = row
+        weightx = 1.0; fill = GridBagConstraints.HORIZONTAL
+    }
 
     init {
         border = JBUI.Borders.empty(0, 4, 4, 4)
 
         val content = JPanel(GridBagLayout())
         var row = 0
-
-        fun fillX(r: Int) = GridBagConstraints().apply {
-            gridx = 0; gridy = r; weightx = 1.0; fill = GridBagConstraints.HORIZONTAL
-            anchor = GridBagConstraints.NORTHWEST
-        }
 
         fun serial() = ctx.getSelectedDeviceSerial() ?: ""
 
@@ -53,74 +77,88 @@ class DeviceSettingsTabPanel(private val ctx: ActionContext) : JPanel(BorderLayo
                 font = font.deriveFont(java.awt.Font.BOLD, font.size + 1f)
             }, BorderLayout.WEST)
             add(iconButton(AllIcons.Actions.Refresh, "Refresh all settings from device") { refreshAll() }, BorderLayout.EAST)
-        }, fillX(row++))
+        }, spanConstraints(row++))
 
         // ── Developer Options ──
         content.add(TitledSeparator("Developer Options").apply {
             border = JBUI.Borders.emptyTop(8)
-        }, fillX(row++))
+        }, spanConstraints(row++))
 
-        content.add(addToggle(
+        fun addToggle(label: String, onRead: () -> Boolean, onWrite: (Boolean) -> Unit) {
+            val t = SettingToggleRow(label, onRead, onWrite)
+            toggleRows.add(t)
+            content.add(t.label, labelConstraints(row))
+            content.add(t.toggle, toggleConstraints(row))
+            content.add(JPanel().apply { isOpaque = false }, spacerConstraints(row))
+            row++
+        }
+
+        addToggle(
             AdbDeckBundle.message("settings.animations"),
             { DeviceSettingsCommands.getAnimationsEnabled(ctx.adbController, serial()) },
             { DeviceSettingsCommands.setAnimations(ctx.adbController, serial(), it) },
-        ), fillX(row++))
-
-        content.add(addToggle(
+        )
+        addToggle(
             AdbDeckBundle.message("settings.layoutBounds"),
             { DeviceSettingsCommands.getLayoutBoundsEnabled(ctx.adbController, serial()) },
             { DeviceSettingsCommands.setLayoutBounds(ctx.adbController, serial(), it) },
-        ), fillX(row++))
-
-        content.add(addToggle(
+        )
+        addToggle(
             AdbDeckBundle.message("settings.showOverdraw"),
             { DeviceSettingsCommands.getOverdrawEnabled(ctx.adbController, serial()) },
             { DeviceSettingsCommands.setOverdraw(ctx.adbController, serial(), it) },
-        ), fillX(row++))
-
-        content.add(addToggle(
+        )
+        addToggle(
             AdbDeckBundle.message("settings.dontKeepActivities"),
             { DeviceSettingsCommands.getDontKeepActivitiesEnabled(ctx.adbController, serial()) },
             { DeviceSettingsCommands.setDontKeepActivities(ctx.adbController, serial(), it) },
-        ), fillX(row++))
-
-        content.add(addToggle(
+        )
+        addToggle(
             AdbDeckBundle.message("settings.stayAwake"),
             { DeviceSettingsCommands.getStayAwakeEnabled(ctx.adbController, serial()) },
             { DeviceSettingsCommands.setStayAwake(ctx.adbController, serial(), it) },
-        ), fillX(row++))
-
-        content.add(addToggle(
+        )
+        addToggle(
             AdbDeckBundle.message("settings.showRefreshRate"),
             { DeviceSettingsCommands.getRefreshRateEnabled(ctx.adbController, serial()) },
             { DeviceSettingsCommands.setRefreshRate(ctx.adbController, serial(), it) },
-        ), fillX(row++))
-
-        content.add(addToggle(
+        )
+        addToggle(
             AdbDeckBundle.message("settings.showSurfaceUpdates"),
             { DeviceSettingsCommands.getSurfaceUpdatesEnabled(ctx.adbController, serial()) },
             { DeviceSettingsCommands.setSurfaceUpdates(ctx.adbController, serial(), it) },
-        ), fillX(row++))
-
-        content.add(addToggle(
+        )
+        addToggle(
             AdbDeckBundle.message("settings.profileHwui"),
             { DeviceSettingsCommands.getHwuiProfilingEnabled(ctx.adbController, serial()) },
             { DeviceSettingsCommands.setHwuiProfiling(ctx.adbController, serial(), it) },
-        ), fillX(row++))
+        )
 
         // ── Display & Appearance ──
         content.add(TitledSeparator("Display & Appearance").apply {
             border = JBUI.Borders.emptyTop(16)
-        }, fillX(row++))
+        }, spanConstraints(row++))
 
-        content.add(addToggle(
+        addToggle(
             AdbDeckBundle.message("settings.darkMode"),
             { DeviceSettingsCommands.getDarkModeEnabled(ctx.adbController, serial()) },
             { DeviceSettingsCommands.setDarkMode(ctx.adbController, serial(), it) },
-        ), fillX(row++))
+        )
 
-        // Font Size — AOSP values: 0.85, 1.0, 1.15, 1.3
-        content.add(createScaleSliderRow(
+        fun addSlider(label: String, stops: Int, defaultIndex: Int, onChange: (Int) -> Unit) {
+            content.add(JBLabel(label), labelConstraints(row))
+            val slider = JSlider(0, stops - 1, defaultIndex).apply {
+                majorTickSpacing = 1; paintTicks = true; paintLabels = false; snapToTicks = true
+                preferredSize = Dimension(JBUI.scale(220), preferredSize.height)
+                addChangeListener { if (!valueIsAdjusting) onChange(value) }
+            }
+            content.add(slider, toggleConstraints(row))
+            content.add(JPanel().apply { isOpaque = false }, spacerConstraints(row))
+            row++
+        }
+
+        // Font Size
+        addSlider(
             label = "Font Size:",
             stops = 4,
             defaultIndex = 1,
@@ -129,10 +167,10 @@ class DeviceSettingsTabPanel(private val ctx: ActionContext) : JPanel(BorderLayo
             ApplicationManager.getApplication().executeOnPooledThread {
                 DeviceSettingsCommands.setFontScale(ctx.adbController, serial(), scale)
             }
-        }, fillX(row++))
+        }
 
-        // Display Size — uses device physical DPI with evenly spaced offsets
-        content.add(createScaleSliderRow(
+        // Display Size
+        addSlider(
             label = "Display Size:",
             stops = 5,
             defaultIndex = 2,
@@ -141,18 +179,16 @@ class DeviceSettingsTabPanel(private val ctx: ActionContext) : JPanel(BorderLayo
                 if (index == 2) {
                     DeviceSettingsCommands.resetDisplayScale(ctx.adbController, serial())
                 } else {
-                    // Map 0..4 to scale offsets: -2, -1, 0, +1, +2 steps
-                    // Each step ≈ 10% of physical DPI, matching AOSP ScreenZoomSettings
                     val stepFraction = listOf(-0.20f, -0.10f, 0f, 0.10f, 0.20f)[index]
                     DeviceSettingsCommands.setDisplayScale(ctx.adbController, serial(), 1.0f + stepFraction)
                 }
             }
-        }, fillX(row++))
+        }
 
         // ── Configuration Changes ──
         content.add(TitledSeparator("Configuration Changes").apply {
             border = JBUI.Borders.emptyTop(16)
-        }, fillX(row++))
+        }, spanConstraints(row++))
 
         content.add(createButtonRow(
             JButton("Rotate →").apply {
@@ -183,12 +219,12 @@ class DeviceSettingsTabPanel(private val ctx: ActionContext) : JPanel(BorderLayo
                     }
                 }
             },
-        ), fillX(row++))
+        ), spanConstraints(row++))
 
         // ── Process & Memory ──
         content.add(TitledSeparator("Process & Memory").apply {
             border = JBUI.Borders.emptyTop(16)
-        }, fillX(row++))
+        }, spanConstraints(row++))
 
         content.add(createButtonRow(
             JButton("Simulate Process Death").apply {
@@ -198,7 +234,7 @@ class DeviceSettingsTabPanel(private val ctx: ActionContext) : JPanel(BorderLayo
                     executeTestAction { s, p -> TestingCommands.simulateProcessDeath(ctx.adbController, s, p) }
                 }
             },
-        ), fillX(row++))
+        ), spanConstraints(row++))
 
         // Trim Memory row
         val trimLevelCombo = ComboBox(TestingCommands.TrimMemoryLevel.entries.toTypedArray()).apply {
@@ -224,11 +260,11 @@ class DeviceSettingsTabPanel(private val ctx: ActionContext) : JPanel(BorderLayo
             add(JPanel(), GridBagConstraints().apply {
                 gridx = 3; gridy = 0; weightx = 1.0; fill = GridBagConstraints.HORIZONTAL
             })
-        }, fillX(row++))
+        }, spanConstraints(row++))
 
         // Glue to push everything to the top
         content.add(JPanel(), GridBagConstraints().apply {
-            gridx = 0; gridy = row; weighty = 1.0; fill = GridBagConstraints.VERTICAL
+            gridx = 0; gridy = row; gridwidth = 3; weighty = 1.0; fill = GridBagConstraints.VERTICAL
         })
 
         add(JBScrollPane(content).apply { border = JBUI.Borders.empty() }, BorderLayout.CENTER)
@@ -236,83 +272,21 @@ class DeviceSettingsTabPanel(private val ctx: ActionContext) : JPanel(BorderLayo
 
     // ── Row builders ──
 
-    private fun addToggle(
-        label: String,
-        onRead: () -> Boolean,
-        onWrite: (Boolean) -> Unit,
-    ): SettingToggleRow {
-        val toggleRow = SettingToggleRow(label, onRead, onWrite).apply {
-            maximumSize = Dimension(Int.MAX_VALUE, preferredSize.height)
-        }
-        toggleRows.add(toggleRow)
-        return toggleRow
-    }
-
-    private fun createScaleSliderRow(
-        label: String,
-        stops: Int,
-        defaultIndex: Int,
-        onChange: (Int) -> Unit,
-    ): JPanel {
-        return JPanel(GridBagLayout()).apply {
-            border = JBUI.Borders.empty(4, 0)
-
-            add(JBLabel(label), GridBagConstraints().apply {
-                gridx = 0; gridy = 0; anchor = GridBagConstraints.WEST
-                insets = JBUI.insetsRight(12)
-            })
-
-            val slider = JSlider(0, stops - 1, defaultIndex).apply {
-                majorTickSpacing = 1
-                paintTicks = true
-                paintLabels = false
-                snapToTicks = true
-                preferredSize = Dimension(JBUI.scale(160), preferredSize.height)
-                addChangeListener {
-                    if (!valueIsAdjusting) {
-                        onChange(value)
-                    }
-                }
-            }
-
-            add(slider, GridBagConstraints().apply {
-                gridx = 1; gridy = 0; anchor = GridBagConstraints.WEST
-            })
-
-            // Push rest of space to right
-            add(JPanel(), GridBagConstraints().apply {
-                gridx = 2; gridy = 0; weightx = 1.0; fill = GridBagConstraints.HORIZONTAL
-            })
-        }
-    }
 
     private fun createButtonRow(vararg buttons: JButton): JPanel {
         return JPanel(GridBagLayout()).apply {
             border = JBUI.Borders.empty(2, 0)
             for ((i, btn) in buttons.withIndex()) {
                 add(btn, GridBagConstraints().apply {
-                    gridx = i; gridy = 0; anchor = GridBagConstraints.WEST
-                    insets = JBUI.insetsRight(8)
+                    gridx = i; gridy = 0; anchor = GridBagConstraints.WEST; insets = JBUI.insetsRight(8)
                 })
             }
-            add(JPanel(), GridBagConstraints().apply {
-                gridx = buttons.size; gridy = 0; weightx = 1.0; fill = GridBagConstraints.HORIZONTAL
-            })
+            add(JPanel(), horizontalSpacerConstraints(buttons.size))
         }
     }
 
     private fun executeTestAction(action: (String, String) -> AdbResult) {
-        val serial = ctx.getSelectedDeviceSerial() ?: return
-        val pkg = ctx.getSelectedPackage() ?: return
-        ApplicationManager.getApplication().executeOnPooledThread {
-            val result = action(serial, pkg)
-            ApplicationManager.getApplication().invokeLater {
-                ctx.logToConsole(result.command, if (result.isSuccess) result.output else result.error)
-                val type = if (result.isSuccess) NotificationType.INFORMATION else NotificationType.ERROR
-                val msg = if (result.isSuccess) result.output.take(100).ifBlank { "Done" } else result.error.take(100)
-                ctx.project.notifyAdbDeck(msg, type)
-            }
-        }
+        ctx.runAdbActionWithPackage(action)
     }
 
     fun refreshAll() {

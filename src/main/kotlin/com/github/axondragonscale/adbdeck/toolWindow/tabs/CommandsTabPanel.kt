@@ -5,6 +5,7 @@ import com.github.axondragonscale.adbdeck.model.SavedCommand
 import com.github.axondragonscale.adbdeck.state.AdbDeckStateService
 import com.github.axondragonscale.adbdeck.toolwindow.ActionContext
 import com.github.axondragonscale.adbdeck.toolwindow.ConsolePanel
+import com.github.axondragonscale.adbdeck.toolwindow.components.fillXConstraints
 import com.github.axondragonscale.adbdeck.toolwindow.components.iconButton
 import com.intellij.icons.AllIcons
 import com.intellij.openapi.actionSystem.AnAction
@@ -68,26 +69,21 @@ class CommandsTabPanel(private val ctx: ActionContext) : JPanel(BorderLayout()) 
         val content = JPanel(GridBagLayout())
         var row = 0
 
-        fun fillX(r: Int) = GridBagConstraints().apply {
-            gridx = 0; gridy = r; weightx = 1.0; fill = GridBagConstraints.HORIZONTAL
-            anchor = GridBagConstraints.NORTHWEST
-        }
-
         // ── Command Input ──
         content.add(TitledSeparator("Command Input").apply {
             border = JBUI.Borders.emptyTop(12)
-        }, fillX(row++))
+        }, fillXConstraints(row++))
 
         // Shell checkbox
         content.add(JPanel(GridBagLayout()).apply {
-            border = JBUI.Borders.empty(4, 0, 0, 0)
+            border = JBUI.Borders.emptyTop(4)
             add(shellCheckbox, GridBagConstraints().apply {
                 gridx = 0; gridy = 0; anchor = GridBagConstraints.WEST
             })
             add(JPanel(), GridBagConstraints().apply {
                 gridx = 1; gridy = 0; weightx = 1.0; fill = GridBagConstraints.HORIZONTAL
             })
-        }, fillX(row++))
+        }, fillXConstraints(row++))
 
         // Command field + Run button + Save bookmark
         content.add(JPanel(GridBagLayout()).apply {
@@ -111,7 +107,7 @@ class CommandsTabPanel(private val ctx: ActionContext) : JPanel(BorderLayout()) 
             add(iconButton(AllIcons.Nodes.BookmarkGroup, "Save command") { saveCurrentCommand() }, GridBagConstraints().apply {
                 gridx = 3; gridy = 0; anchor = GridBagConstraints.EAST
             })
-        }, fillX(row++))
+        }, fillXConstraints(row++))
 
         // Enter / Up / Down keys
         commandField.addKeyListener(object : KeyAdapter() {
@@ -127,7 +123,7 @@ class CommandsTabPanel(private val ctx: ActionContext) : JPanel(BorderLayout()) 
         // ── Saved Commands ──
         content.add(TitledSeparator("Saved Commands").apply {
             border = JBUI.Borders.emptyTop(16)
-        }, fillX(row++))
+        }, fillXConstraints(row++))
 
         // Table setup
         savedTable.apply {
@@ -153,11 +149,10 @@ class CommandsTabPanel(private val ctx: ActionContext) : JPanel(BorderLayout()) 
             border = JBUI.Borders.empty(4, 0)
             preferredSize = Dimension(0, JBUI.scale(160))
             add(JBScrollPane(savedTable), BorderLayout.CENTER)
-        }, fillX(row++))
+        }, fillXConstraints(row++))
 
-        // (content ends here — no glue needed since panel is in NORTH)
 
-        add(JBScrollPane(content).apply { border = JBUI.Borders.empty() }, BorderLayout.NORTH)
+        add(content, BorderLayout.NORTH)
 
         // ── Center: Console (takes all remaining height) ──
         add(consolePanel, BorderLayout.CENTER)
