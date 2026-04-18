@@ -2,14 +2,46 @@
 <idea-plugin>
     <id>com.github.axondragonscale.adbdeck</id>
     <name>AdbDeck</name>
-    <vendor>axondragonscale</vendor>
+    <vendor email="axondragonscale@gmail.com" url="https://github.com/AxonDragonScale">axondragonscale</vendor>
 
     <depends>com.intellij.modules.platform</depends>
+    <depends>org.jetbrains.android</depends>
 
-    <resource-bundle>messages.MyBundle</resource-bundle>
+    <resource-bundle>messages.AdbDeckBundle</resource-bundle>
 
     <extensions defaultExtensionNs="com.intellij">
-        <toolWindow factoryClass="com.github.axondragonscale.adbdeck.toolWindow.MyToolWindowFactory" id="MyToolWindow"/>
-        <postStartupActivity implementation="com.github.axondragonscale.adbdeck.startup.MyProjectActivity" />
+        <notificationGroup id="AdbDeck" displayType="BALLOON"/>
+        <toolWindow id="AdbDeck"
+                    anchor="right"
+                    factoryClass="com.github.axondragonscale.adbdeck.toolwindow.AdbDeckToolWindowFactory"/>
     </extensions>
+
+    <actions>
+        <group id="AdbDeck.ActionGroup" text="AdbDeck" description="AdbDeck actions" popup="true">
+            <action id="AdbDeck.ForceStop"
+                    class="com.github.axondragonscale.adbdeck.actions.ForceStopAction"
+                    text="AdbDeck: Force Stop"
+                    description="Force stop the current app"/>
+            <action id="AdbDeck.ClearData"
+                    class="com.github.axondragonscale.adbdeck.actions.ClearDataAction"
+                    text="AdbDeck: Clear Data"
+                    description="Clear the current app's data"/>
+            <action id="AdbDeck.KillAndRestart"
+                    class="com.github.axondragonscale.adbdeck.actions.KillAndRestartAction"
+                    text="AdbDeck: Kill &amp; Restart"
+                    description="Kill and restart the current app"/>
+            <action id="AdbDeck.OpenApp"
+                    class="com.github.axondragonscale.adbdeck.actions.OpenAppAction"
+                    text="AdbDeck: Open App"
+                    description="Launch the current app"/>
+            <action id="AdbDeck.ToggleAnimations"
+                    class="com.github.axondragonscale.adbdeck.actions.ToggleAnimationsAction"
+                    text="AdbDeck: Toggle Animations"
+                    description="Toggle device animations on/off"/>
+            <action id="AdbDeck.SimulateProcessDeath"
+                    class="com.github.axondragonscale.adbdeck.actions.SimulateProcessDeathAction"
+                    text="AdbDeck: Simulate Process Death"
+                    description="Kill the app process to test state restoration"/>
+        </group>
+    </actions>
 </idea-plugin>
