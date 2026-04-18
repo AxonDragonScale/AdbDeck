@@ -4,6 +4,9 @@
 
 ## [Unreleased]
 ### Added
+
+## [1.0.0]
+### Added
 - **App Tab** — Package selector with auto-detection of project `applicationId`, package details display, app lifecycle actions (open, force stop, kill & restart, app info, clear data, uninstall), grant/revoke all permissions, and per-permission management dashboard with filtering
 - **All Apps Tab** — Searchable, filterable list of all installed apps with sorting, right-click context menu for quick actions, and filter by user/system/debuggable apps
 - **Deep Links & Intents Tab** — Deep link launcher with history and bookmarks, custom intent builder with support for extras, and unified bookmarks panel for both links and intents
