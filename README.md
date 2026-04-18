@@ -1,52 +1,74 @@
 # AdbDeck
 
 ![Build](https://github.com/AxonDragonScale/AdbDeck/workflows/Build/badge.svg)
-[![Version](https://img.shields.io/jetbrains/plugin/v/MARKETPLACE_ID.svg)](https://plugins.jetbrains.com/plugin/MARKETPLACE_ID)
-[![Downloads](https://img.shields.io/jetbrains/plugin/d/MARKETPLACE_ID.svg)](https://plugins.jetbrains.com/plugin/MARKETPLACE_ID)
 
-## Template ToDo list
-- [x] Create a new [IntelliJ Platform Plugin Template][template] project.
-- [ ] Get familiar with the [template documentation][template].
-- [ ] Adjust the [pluginGroup](./gradle.properties) and [pluginName](./gradle.properties), as well as the [id](./src/main/resources/META-INF/plugin.xml) and [sources package](./src/main/kotlin).
-- [ ] Adjust the plugin description in `README` (see [Tips][docs:plugin-description])
-- [ ] Review the [Legal Agreements](https://plugins.jetbrains.com/docs/marketplace/legal-agreements.html?from=IJPluginTemplate).
-- [ ] [Publish a plugin manually](https://plugins.jetbrains.com/docs/intellij/publishing-plugin.html?from=IJPluginTemplate) for the first time.
-- [ ] Set the `MARKETPLACE_ID` in the above README badges. You can obtain it once the plugin is published to JetBrains Marketplace.
-- [ ] Set the [Plugin Signing](https://plugins.jetbrains.com/docs/intellij/plugin-signing.html?from=IJPluginTemplate) related [secrets](https://github.com/JetBrains/intellij-platform-plugin-template#environment-variables).
-- [ ] Set the [Deployment Token](https://plugins.jetbrains.com/docs/marketplace/plugin-upload.html?from=IJPluginTemplate).
-- [ ] Click the <kbd>Watch</kbd> button on the top of the [IntelliJ Platform Plugin Template][template] to be notified about releases containing new features and fixes.
-- [ ] Configure the [CODECOV_TOKEN](https://docs.codecov.com/docs/quick-start) secret for automated test coverage reports on PRs
+> An Android Studio plugin that provides quick access to ADB operations developers actually need — the ones Android Studio doesn't already surface well.
 
 <!-- Plugin description -->
-This Fancy IntelliJ Platform Plugin is going to be your implementation of the brilliant ideas that you have.
+**AdbDeck** is a focused tool window for Android Studio that puts common ADB operations at your fingertips. Stop context-switching to the terminal for toggling developer settings, managing permissions, testing deep links, simulating edge cases, and clearing app data.
 
-This specific section is a source for the [plugin.xml](/src/main/resources/META-INF/plugin.xml) file which will be extracted by the [Gradle](/build.gradle.kts) during the build process.
+### Features
 
-To keep everything working, do not remove `<!-- ... -->` sections. 
+- **App Tab** — Force stop, kill & restart, clear data, uninstall, open app info, and manage runtime permissions with a single click. Includes a package selector that auto-detects your project's `applicationId`.
+- **All Apps Tab** — Browse, search, and filter all installed apps on the device. Filter by user, system, or debuggable apps. Right-click for quick actions.
+- **Deep Links & Intents Tab** — Launch deep links, build custom intents with extras, and bookmark frequently used URIs and intents.
+- **Device Settings Tab** — Toggle animations, layout bounds, dark mode, don't keep activities, stay awake, and more. Adjust font size and display density with sliders.
+- **Commands Tab** — Run arbitrary ADB/shell commands with a built-in console. Save and organize frequently used commands. Navigate history with arrow keys.
+
+All actions are also registered as IntelliJ actions, discoverable via **Find Action** (<kbd>Cmd</kbd>+<kbd>Shift</kbd>+<kbd>A</kbd>) by searching "AdbDeck".
 <!-- Plugin description end -->
+
+## Screenshots
+
+| App | All Apps | Deep Links |
+|-----|----------|------------|
+| ![App Tab](docs/app_tab.png) | ![All Apps Tab](docs/all_apps_tab.png) | ![Deep Links Tab](docs/deep_links_tab.png) |
+
+| Settings | Commands |
+|----------|----------|
+| ![Settings Tab](docs/settings_tab.png) | ![Commands Tab](docs/commands_tab.png) |
 
 ## Installation
 
-- Using the IDE built-in plugin system:
+- **Using the IDE built-in plugin system:**
 
-  <kbd>Settings/Preferences</kbd> > <kbd>Plugins</kbd> > <kbd>Marketplace</kbd> > <kbd>Search for "AdbDeck"</kbd> >
-  <kbd>Install</kbd>
+  <kbd>Settings/Preferences</kbd> > <kbd>Plugins</kbd> > <kbd>Marketplace</kbd> > <kbd>Search for "AdbDeck"</kbd> > <kbd>Install</kbd>
 
-- Using JetBrains Marketplace:
-
-  Go to [JetBrains Marketplace](https://plugins.jetbrains.com/plugin/MARKETPLACE_ID) and install it by clicking the <kbd>Install to ...</kbd> button in case your IDE is running.
-
-  You can also download the [latest release](https://plugins.jetbrains.com/plugin/MARKETPLACE_ID/versions) from JetBrains Marketplace and install it manually using
-  <kbd>Settings/Preferences</kbd> > <kbd>Plugins</kbd> > <kbd>⚙️</kbd> > <kbd>Install plugin from disk...</kbd>
-
-- Manually:
+- **Manually:**
 
   Download the [latest release](https://github.com/AxonDragonScale/AdbDeck/releases/latest) and install it manually using
   <kbd>Settings/Preferences</kbd> > <kbd>Plugins</kbd> > <kbd>⚙️</kbd> > <kbd>Install plugin from disk...</kbd>
 
+## Requirements
+
+- Android Studio Meerkat (2025.3) or newer
+- A connected Android device or emulator
+
+## Actions
+
+All actions are available via **Find Action** and can be assigned custom keybindings in <kbd>Settings</kbd> > <kbd>Keymap</kbd> > <kbd>AdbDeck</kbd>.
+
+| Action | Description |
+|--------|-------------|
+| AdbDeck: Force Stop | Force stop the current app |
+| AdbDeck: Clear Data | Clear the current app's data |
+| AdbDeck: Kill & Restart | Kill and restart the current app |
+| AdbDeck: Open App | Launch the current app |
+| AdbDeck: Toggle Animations | Toggle device animations on/off |
+| AdbDeck: Simulate Process Death | Kill the app process to test state restoration |
+
+## Building from Source
+
+```bash
+./gradlew buildPlugin
+```
+
+The plugin ZIP will be in `build/distributions/`.
+
+## License
+
+See [LICENSE](LICENSE) for details.
 
 ---
-Plugin based on the [IntelliJ Platform Plugin Template][template].
 
-[template]: https://github.com/JetBrains/intellij-platform-plugin-template
-[docs:plugin-description]: https://plugins.jetbrains.com/docs/intellij/plugin-user-experience.html#plugin-description-and-presentation
+Built by [AxonDragonScale](https://github.com/AxonDragonScale).
